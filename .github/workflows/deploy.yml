@@ -1,0 +1,38 @@
+name: Build and Deploy to Minikube
+
+on:
+  push:
+    paths:
+      - '**.c'
+      - '**.yaml'
+      - 'Dockerfile'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t c-web-server:local .
+
+    - name: Load image into Minikube
+      run: |
+        minikube image load c-web-server:local
+
+    - name: Set Kubeconfig
+      run: |
+        echo "KUBECONFIG=${HOME}/.kube/config" >> $GITHUB_ENV
+
+    - name: Deploy with Helm
+      run: |
+        helm upgrade --install c-web helm/c-app \
+          --set image.repository=c-web-server \
+          --set image.tag=local
